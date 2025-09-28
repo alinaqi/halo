@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 const SecureStorage = require('./services/storage.cjs');
 const FileSystemService = require('./services/fileSystem.cjs');
+const claudeSDKService = require('./services/claudeSDK.cjs');
 require('dotenv').config();
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -99,9 +100,20 @@ function createWindow() {
   Menu.setApplicationMenu(menu);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   storage = new SecureStorage();
   fileSystem = new FileSystemService();
+
+  // Initialize Claude SDK if API key exists
+  try {
+    const apiKey = await storage.getApiKey() || process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      claudeSDKService.initialize(apiKey);
+    }
+  } catch (error) {
+    console.error('Failed to initialize Claude SDK:', error);
+  }
+
   createWindow();
 });
 
@@ -126,6 +138,10 @@ ipcMain.handle('app-version', () => {
 ipcMain.handle('save-api-key', async (event, key) => {
   try {
     const result = await storage.saveApiKey(key);
+    // Initialize Claude SDK with the new key
+    if (result && key) {
+      claudeSDKService.initialize(key);
+    }
     return { success: result };
   } catch (error) {
     return { success: false, error: error.message };

@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchFiles: (searchTerm, searchPath) => ipcRenderer.invoke('fs-search-files', searchTerm, searchPath),
   getWorkspaceInfo: () => ipcRenderer.invoke('fs-get-workspace-info'),
 
+  // Claude SDK functions
+  chat: (params) => ipcRenderer.invoke('claude:chat', params),
+  executeCommand: (params) => ipcRenderer.invoke('claude:executeCommand', params),
+  webSearch: (params) => ipcRenderer.invoke('claude:webSearch', params),
+  analyzeFile: (params) => ipcRenderer.invoke('claude:analyzeFile', params),
+  generateCode: (params) => ipcRenderer.invoke('claude:generateCode', params),
+  automateTask: (params) => ipcRenderer.invoke('claude:automateTask', params),
+  clearConversation: () => ipcRenderer.invoke('claude:clearConversation'),
+  getConversationHistory: () => ipcRenderer.invoke('claude:getHistory'),
+
   // Event listeners
   onNewChat: (callback) => ipcRenderer.on('new-chat', callback),
   onOpenProject: (callback) => ipcRenderer.on('open-project', callback),
