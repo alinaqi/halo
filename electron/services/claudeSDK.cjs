@@ -19,14 +19,26 @@ Be helpful, concise, and proactive in suggesting solutions.`;
 
   initialize(apiKey) {
     if (!apiKey) {
-      throw new Error('API key is required');
+      console.warn('No API key provided for Claude SDK');
+      this.client = null;
+      return false;
     }
 
-    this.client = new Anthropic({
-      apiKey: apiKey
-    });
+    try {
+      // Clean the API key (remove any whitespace)
+      const cleanApiKey = apiKey.trim();
 
-    return true;
+      this.client = new Anthropic({
+        apiKey: cleanApiKey
+      });
+
+      console.log('Claude SDK initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('Failed to initialize Claude SDK:', error);
+      this.client = null;
+      return false;
+    }
   }
 
   setupHandlers() {
@@ -34,7 +46,17 @@ Be helpful, concise, and proactive in suggesting solutions.`;
     ipcMain.handle('claude:chat', async (event, { message, context }) => {
       try {
         if (!this.client) {
-          throw new Error('Claude SDK not initialized. Please provide API key.');
+          // Return a helpful demo response when SDK is not initialized
+          return {
+            success: true,
+            message: `I understand you're asking: "${message}"\n\nHowever, I'm currently running in demo mode. To enable full AI capabilities:\n\n1. Go to Settings (gear icon in sidebar)\n2. Enter your Anthropic API key\n3. Save and try again\n\nYou can get an API key from: https://console.anthropic.com/`,
+            suggestions: [
+              'Open Settings',
+              'Get API key from Anthropic',
+              'Try demo features',
+              'Explore the interface'
+            ]
+          };
         }
 
         // Add message to history
@@ -62,9 +84,26 @@ Be helpful, concise, and proactive in suggesting solutions.`;
         };
       } catch (error) {
         console.error('Chat error:', error);
+
+        // Check if it's an authentication error
+        if (error.message && error.message.includes('401')) {
+          return {
+            success: false,
+            error: 'Invalid API key. Please check your API key in Settings and ensure it starts with "sk-ant-api" and is valid.'
+          };
+        }
+
+        // Check for rate limit
+        if (error.message && error.message.includes('429')) {
+          return {
+            success: false,
+            error: 'Rate limit exceeded. Please wait a moment before trying again.'
+          };
+        }
+
         return {
           success: false,
-          error: error.message
+          error: `API Error: ${error.message || 'Unknown error occurred'}`
         };
       }
     });
