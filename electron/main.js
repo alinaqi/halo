@@ -1,8 +1,12 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const SecureStorage = require('./services/storage');
+require('dotenv').config();
+
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
+let storage;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -93,7 +97,10 @@ function createWindow() {
   Menu.setApplicationMenu(menu);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  storage = new SecureStorage();
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -110,4 +117,57 @@ app.on('activate', () => {
 // IPC handlers
 ipcMain.handle('app-version', () => {
   return app.getVersion();
+});
+
+// API Key management
+ipcMain.handle('save-api-key', async (event, key) => {
+  try {
+    const result = await storage.saveApiKey(key);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-api-key', async () => {
+  try {
+    const key = await storage.getApiKey();
+    // First try stored key, then environment variable
+    return key || process.env.ANTHROPIC_API_KEY || null;
+  } catch (error) {
+    return null;
+  }
+});
+
+ipcMain.handle('delete-api-key', async () => {
+  try {
+    const result = await storage.deleteApiKey();
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// User preferences
+ipcMain.handle('save-preferences', async (event, preferences) => {
+  try {
+    const result = await storage.saveUserPreferences(preferences);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-preferences', async () => {
+  try {
+    const preferences = await storage.getUserPreferences();
+    return preferences;
+  } catch (error) {
+    return {
+      theme: 'light',
+      role: null,
+      tier: 'free',
+      operationMode: 'yolo',
+    };
+  }
 });
