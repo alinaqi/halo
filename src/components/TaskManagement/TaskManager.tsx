@@ -53,59 +53,28 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ userRole }) => {
   }, []);
 
   const loadTasks = async () => {
-    // Load from localStorage or Electron storage
-    const savedTasks = localStorage.getItem('halo-tasks');
+    // Load from localStorage - always use 'tasks' key for consistency
+    const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+      const parsedTasks = JSON.parse(savedTasks);
+      // Ensure dates are properly parsed
+      const tasksWithDates = parsedTasks.map((task: any) => ({
+        ...task,
+        createdAt: new Date(task.createdAt),
+        updatedAt: new Date(task.updatedAt),
+        dueDate: task.dueDate ? new Date(task.dueDate) : undefined
+      }));
+      setTasks(tasksWithDates);
     } else {
-      // Set default tasks based on role
-      setTasks(getDefaultTasksByRole());
+      // Start with empty tasks - no dummy data
+      setTasks([]);
     }
-  };
-
-  const getDefaultTasksByRole = (): Task[] => {
-    const baseTasks: Task[] = [
-      {
-        id: '1',
-        title: 'Review project requirements',
-        description: 'Go through all project requirements and create action items',
-        status: 'todo',
-        priority: 'high',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tags: ['planning', 'review'],
-        dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-      },
-      {
-        id: '2',
-        title: 'Team sync meeting',
-        description: 'Weekly team synchronization',
-        status: 'in-progress',
-        priority: 'medium',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tags: ['meeting', 'team']
-      }
-    ];
-
-    if (userRole === 'pm' || userRole === 'product') {
-      baseTasks.push({
-        id: '3',
-        title: 'Create PRD for new feature',
-        status: 'todo',
-        priority: 'high',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        tags: ['documentation', 'product']
-      });
-    }
-
-    return baseTasks;
   };
 
   const saveTasks = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
-    localStorage.setItem('halo-tasks', JSON.stringify(updatedTasks));
+    // Use consistent 'tasks' key for localStorage
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
   };
 
   const addTask = () => {
