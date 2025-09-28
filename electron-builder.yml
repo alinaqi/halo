@@ -1,0 +1,122 @@
+appId: com.halo.desktop
+productName: Halo
+copyright: Copyright © 2024 Halo Desktop
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - electron/**/*.cjs
+  - electron/services/**/*.cjs
+  - node_modules/**/*
+  - "!**/*.map"
+  - "!**/*.md"
+  - "!**/.*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{tsconfig.json,yarn.lock,package-lock.json}"
+  - "!**/node_modules/*/{test,tests,example,examples,doc,docs}"
+
+asar: true
+compression: maximum
+
+mac:
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+
+dmg:
+  icon: build/icon.icns
+  iconSize: 100
+  contents:
+    - x: 380
+      y: 240
+      type: link
+      path: /Applications
+    - x: 122
+      y: 240
+      type: file
+  window:
+    width: 540
+    height: 380
+  backgroundColor: "#1e293b"
+  title: "Install Halo"
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  publisherName: "Halo Desktop"
+  verifyUpdateCodeSignature: false
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+  displayLanguageSelector: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeader: build/installerHeader.bmp
+  installerSidebar: build/installerSidebar.bmp
+  license: LICENSE
+  shortcutName: Halo
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  menuCategory: true
+  include: build/installer.nsh
+
+linux:
+  icon: build
+  category: Development
+  maintainer: "Halo Team"
+  synopsis: "AI-Powered Desktop Assistant"
+  description: "Halo brings the power of AI to your desktop with an easy-to-use interface"
+  target:
+    - AppImage
+    - deb
+    - rpm
+  desktop:
+    Name: Halo
+    Comment: AI-Powered Desktop Assistant
+    Categories: Development;Utility;
+
+appImage:
+  license: LICENSE
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+# Auto-update configuration
+publish:
+  provider: github
+  owner: alinaqi
+  repo: halo
+  releaseType: release
+
+# Code signing (optional - for production)
+# mac:
+#   identity: "Developer ID Application: Your Name (XXXXXXXXXX)"
+#   notarize:
+#     appleId: "your-apple-id@example.com"
+#     appleIdPassword: "@keychain:AC_PASSWORD"
+
+# win:
+#   certificateFile: path/to/certificate.pfx
+#   certificatePassword: ${env.CERTIFICATE_PASSWORD}

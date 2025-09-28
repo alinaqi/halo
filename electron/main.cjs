@@ -3,6 +3,7 @@ const path = require('path');
 const SecureStorage = require('./services/storage.cjs');
 const FileSystemService = require('./services/fileSystem.cjs');
 const claudeSDKService = require('./services/claudeSDK.cjs');
+const autoUpdaterService = require('./services/autoUpdater.cjs');
 require('dotenv').config();
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -115,6 +116,9 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+
+  // Start auto-updater schedule
+  autoUpdaterService.startUpdateSchedule();
 });
 
 app.on('window-all-closed', () => {
