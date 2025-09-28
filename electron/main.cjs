@@ -1,12 +1,14 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
-const SecureStorage = require('./services/storage');
+const SecureStorage = require('./services/storage.cjs');
+const FileSystemService = require('./services/fileSystem.cjs');
 require('dotenv').config();
 
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
 let storage;
+let fileSystem;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -17,7 +19,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.cjs')
     },
     titleBarStyle: 'hiddenInset',
     show: false,
@@ -26,7 +28,7 @@ function createWindow() {
 
   // Load the app
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5180');
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -99,6 +101,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   storage = new SecureStorage();
+  fileSystem = new FileSystemService();
   createWindow();
 });
 
@@ -170,4 +173,49 @@ ipcMain.handle('get-preferences', async () => {
       operationMode: 'yolo',
     };
   }
+});
+
+// File System Operations
+ipcMain.handle('fs-read-file', async (event, filePath) => {
+  return await fileSystem.readFile(filePath);
+});
+
+ipcMain.handle('fs-write-file', async (event, filePath, content) => {
+  return await fileSystem.writeFile(filePath, content);
+});
+
+ipcMain.handle('fs-list-directory', async (event, dirPath) => {
+  return await fileSystem.listDirectory(dirPath);
+});
+
+ipcMain.handle('fs-create-directory', async (event, dirPath) => {
+  return await fileSystem.createDirectory(dirPath);
+});
+
+ipcMain.handle('fs-delete-item', async (event, itemPath) => {
+  return await fileSystem.deleteItem(itemPath);
+});
+
+ipcMain.handle('fs-rename-item', async (event, oldPath, newName) => {
+  return await fileSystem.renameItem(oldPath, newName);
+});
+
+ipcMain.handle('fs-open-file-picker', async (event, options) => {
+  return await fileSystem.openFilePicker(options);
+});
+
+ipcMain.handle('fs-save-file-dialog', async (event, options) => {
+  return await fileSystem.saveFileDialog(options);
+});
+
+ipcMain.handle('fs-get-file-metadata', async (event, filePath) => {
+  return await fileSystem.getFileMetadata(filePath);
+});
+
+ipcMain.handle('fs-search-files', async (event, searchTerm, searchPath) => {
+  return await fileSystem.searchFiles(searchTerm, searchPath);
+});
+
+ipcMain.handle('fs-get-workspace-info', async () => {
+  return fileSystem.getWorkspaceInfo();
 });

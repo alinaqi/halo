@@ -14,7 +14,13 @@ export const APISettings: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await initialize(); // Uses managed/environment key
+      // Get the API key from the backend (stored in .env)
+      const storedKey = await window.electronAPI?.getApiKey();
+      if (storedKey) {
+        await initialize(storedKey);
+      } else {
+        setError('No API key found. Please use your own API key.');
+      }
     } catch (err: any) {
       setError('Failed to connect. Please check your connection and try again.');
     } finally {
@@ -54,19 +60,19 @@ export const APISettings: React.FC = () => {
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Provider:</span>
-            <span className="font-medium">Anthropic</span>
+            <span className="font-medium text-gray-900">Anthropic</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Model:</span>
-            <span className="font-medium">Claude 3 Opus</span>
+            <span className="font-medium text-gray-900">Claude 3 Opus</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Source:</span>
-            <span className="font-medium capitalize">{authState.apiKeySource}</span>
+            <span className="font-medium capitalize text-gray-900">{authState.apiKeySource}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Tier:</span>
-            <span className="font-medium capitalize">{authState.tier}</span>
+            <span className="font-medium capitalize text-gray-900">{authState.tier}</span>
           </div>
         </div>
 

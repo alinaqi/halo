@@ -84,8 +84,8 @@ class AnthropicClient {
 
   private getManagedApiKey(): string | undefined {
     // In production, this would fetch from a secure managed pool
-    // For now, we use the environment variable
-    return process.env.ANTHROPIC_API_KEY;
+    // For now, this will be provided through the electron backend
+    return undefined;
   }
 
   async testConnection(): Promise<boolean> {

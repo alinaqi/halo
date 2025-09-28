@@ -1,138 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { AppLayout } from './components/Layout/AppLayout';
-import { Welcome } from './components/Onboarding/Welcome';
-import { RoleSelection } from './components/Onboarding/RoleSelection';
-import { Dashboard } from './components/Dashboard/Dashboard';
-import { ChatInterface } from './components/Chat/ChatInterface';
-import { UserRole, ChatMessage } from './types';
-import { useElectron } from './hooks/useElectron';
-
-type AppState = 'welcome' | 'role-selection' | 'dashboard' | 'chat';
+import React, { useState } from 'react';
+import { APISettings } from './components/Settings/APISettings';
+import { FileExplorer } from './components/FileExplorer/FileExplorer';
+import { AIProvider } from './contexts/AIContext';
 
 function App() {
-  const [appState, setAppState] = useState<AppState>('welcome');
-  const [userRole, setUserRole] = useState<UserRole>('other');
-  const [userName] = useState('Rachel'); // In a real app, this would come from user input
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const { setupMenuListeners } = useElectron();
-
-  useEffect(() => {
-    const cleanup = setupMenuListeners({
-      onNewChat: () => {
-        setMessages([]);
-        setAppState('chat');
-      },
-      onOpenProject: () => {
-        setAppState('dashboard');
-      },
-    });
-
-    return cleanup;
-  }, [setupMenuListeners]);
-
-  const handleWelcomeContinue = () => {
-    setAppState('role-selection');
-  };
-
-  const handleRoleSelect = (role: UserRole) => {
-    setUserRole(role);
-    setAppState('dashboard');
-  };
-
-  const handleSendMessage = (content: string) => {
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: new Date(),
-    };
-
-    const assistantMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: getAIResponse(content, userRole),
-      timestamp: new Date(),
-      suggestions: getMessageSuggestions(content, userRole),
-    };
-
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
-  };
-
-  const getAIResponse = (content: string, role: UserRole): string => {
-    // Simple response logic based on user role and message content
-    const lowerContent = content.toLowerCase();
-    
-    if (lowerContent.includes('feedback') || lowerContent.includes('analyze')) {
-      return "I'll help you analyze that information. I can process documents, extract key insights, and create structured summaries. Would you like me to start by organizing the data by themes or sentiment?";
-    }
-    
-    if (lowerContent.includes('project') || lowerContent.includes('timeline')) {
-      return "I can help you create and manage project timelines. I'll need to understand your project scope, key milestones, and dependencies. Would you like to start with a high-level overview or dive into specific deliverables?";
-    }
-    
-    if (lowerContent.includes('report') || lowerContent.includes('status')) {
-      return "I'll help you generate a comprehensive report. I can pull data from various sources, create visualizations, and format everything professionally. What type of report are you looking to create?";
-    }
-
-    // Role-specific responses
-    switch (role) {
-      case 'pm':
-        return "As your product management assistant, I can help with PRDs, user stories, roadmap planning, and stakeholder communication. What would you like to work on first?";
-      case 'designer':
-        return "I can help you organize design assets, create style guides, generate design documentation, and manage your creative workflow. How can I assist with your design work today?";
-      case 'marketing':
-        return "I can help you create content across multiple channels, analyze campaign performance, and research market trends. What marketing challenge can I help you tackle?";
-      default:
-        return "I understand you'd like help with that. I can assist with document creation, research, analysis, and workflow automation. Could you provide more details about what you're trying to accomplish?";
-    }
-  };
-
-  const getMessageSuggestions = (content: string, role: UserRole): string[] => {
-    const baseSuggestions = [
-      'Show me examples',
-      'Create a template',
-      'Export results',
-      'Schedule follow-up'
-    ];
-
-    if (role === 'pm') {
-      return ['Create PRD template', 'Set up project tracking', 'Generate stakeholder update', 'Analyze user feedback'];
-    }
-    
-    if (role === 'designer') {
-      return ['Organize design assets', 'Create style guide', 'Export design tokens', 'Generate documentation'];
-    }
-    
-    if (role === 'marketing') {
-      return ['Create social content', 'Analyze campaign data', 'Research competitors', 'Schedule content'];
-    }
-    
-    return baseSuggestions;
-  };
-
-  if (appState === 'welcome') {
-    return <Welcome onContinue={handleWelcomeContinue} />;
-  }
-
-  if (appState === 'role-selection') {
-    return <RoleSelection onRoleSelect={handleRoleSelect} />;
-  }
-
-  if (appState === 'chat') {
-    return (
-      <AppLayout>
-        <ChatInterface 
-          messages={messages}
-          onSendMessage={handleSendMessage}
-        />
-      </AppLayout>
-    );
-  }
+  const [isSetup, setIsSetup] = useState(false);
+  const [currentView, setCurrentView] = useState<'chat' | 'files'>('chat');
 
   return (
-    <AppLayout>
-      <Dashboard userRole={userRole} userName={userName} />
-    </AppLayout>
+    <AIProvider>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(to bottom right, #1e293b, #334155)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontFamily: 'system-ui, -apple-system, sans-serif'
+      }}>
+        <div style={{ textAlign: 'center', padding: '2rem', maxWidth: '500px', width: '100%' }}>
+          <h1 style={{ fontSize: '3rem', marginBottom: '1rem' }}>🤖 Welcome to Halo</h1>
+          <p style={{ fontSize: '1.25rem', marginBottom: '3rem', opacity: 0.9 }}>
+            Your AI Desktop Assistant
+          </p>
+
+          {!isSetup ? (
+            <>
+              <APISettings />
+              <button
+                onClick={() => setIsSetup(true)}
+                style={{
+                  marginTop: '1rem',
+                  background: '#10b981',
+                  color: 'white',
+                  padding: '0.75rem 2rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  width: '100%',
+                  maxWidth: '400px'
+                }}
+              >
+                Continue to Chat →
+              </button>
+            </>
+          ) : (
+            <div style={{
+              background: 'white',
+              color: 'black',
+              borderRadius: '1rem',
+              height: '600px',
+              width: '100%',
+              maxWidth: '1200px',
+              overflow: 'hidden',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+            }}>
+              {/* Tab Navigation */}
+              <div style={{
+                display: 'flex',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#f8fafc'
+              }}>
+                <button
+                  onClick={() => setCurrentView('chat')}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: currentView === 'chat' ? 'white' : 'transparent',
+                    border: 'none',
+                    borderBottom: currentView === 'chat' ? '2px solid #3b82f6' : 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: currentView === 'chat' ? '600' : '400'
+                  }}
+                >
+                  💬 Chat
+                </button>
+                <button
+                  onClick={() => setCurrentView('files')}
+                  style={{
+                    padding: '1rem 2rem',
+                    background: currentView === 'files' ? 'white' : 'transparent',
+                    border: 'none',
+                    borderBottom: currentView === 'files' ? '2px solid #3b82f6' : 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: currentView === 'files' ? '600' : '400'
+                  }}
+                >
+                  📁 Files
+                </button>
+              </div>
+
+              {/* Content Area */}
+              <div style={{ height: 'calc(100% - 49px)' }}>
+                {currentView === 'chat' ? (
+                  <div style={{
+                    padding: '2rem',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    <h2 style={{ marginBottom: '1rem' }}>Chat Interface</h2>
+                    <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+                      Phase 1.3 - Chat interface will be implemented here
+                    </p>
+                    <div style={{
+                      flex: 1,
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '0.5rem',
+                      padding: '1rem',
+                      marginBottom: '1rem',
+                      background: '#f8fafc',
+                      overflowY: 'auto'
+                    }}>
+                      <p style={{ color: '#94a3b8' }}>Chat messages will appear here...</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Type your message..."
+                        style={{
+                          flex: 1,
+                          padding: '0.75rem',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '0.5rem',
+                          fontSize: '1rem'
+                        }}
+                      />
+                      <button style={{
+                        padding: '0.75rem 1.5rem',
+                        background: '#3b82f6',
+                        color: 'white',
+                        borderRadius: '0.5rem',
+                        border: 'none',
+                        fontSize: '1rem',
+                        cursor: 'pointer'
+                      }}>
+                        Send
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <FileExplorer />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </AIProvider>
   );
 }
 

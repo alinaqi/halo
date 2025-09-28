@@ -39,6 +39,8 @@ credentials/
 # Build outputs
 build/
 out/
+release/
+*.blockmap
 
 # OS files
 Thumbs.db
