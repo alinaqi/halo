@@ -4,10 +4,13 @@
 
 Halo is a user-friendly desktop application that brings the power of AI to your fingertips. Built with Electron and React, it provides a seamless interface for AI-powered productivity without requiring technical expertise.
 
+### 📥 [Download Latest Release (v1.0.0)](https://github.com/alinaqi/halo/releases/latest)
+
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
-![Status](https://img.shields.io/badge/status-Phase%201%20MVP%20Complete-success)
+![Status](https://img.shields.io/badge/status-v1.0.0%20Released-success)
+![GitHub Release](https://img.shields.io/github/v/release/alinaqi/halo)
 
 ![Halo Desktop Screenshot](halo.png)
 
@@ -33,7 +36,26 @@ Halo is a user-friendly desktop application that brings the power of AI to your 
 - **Task Workflows**: Create, prioritize, and track tasks with statuses
 - **Settings Management**: Comprehensive preferences and customization
 
-## 🚀 Getting Started
+## 🚀 Quick Start (For Users)
+
+### Download & Install
+
+1. **[Download Halo Desktop](https://github.com/alinaqi/halo/releases/latest)**
+   - macOS: Download the `.dmg` file
+   - Windows: Coming soon
+   - Linux: Coming soon
+
+2. **Install**
+   - macOS: Open the DMG and drag Halo to Applications
+   - Windows: Run the installer
+   - Linux: Make AppImage executable and run
+
+3. **Launch & Setup**
+   - Open Halo from your Applications/Start Menu
+   - Choose your role (PM, Designer, Developer, etc.)
+   - Enter your API key or use Quick Start mode
+
+## 💻 Development Setup
 
 ### Prerequisites
 - Node.js 18.0.0 or higher
