@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getConversationHistory: () => ipcRenderer.invoke('claude:getHistory'),
   getAvailableModels: () => ipcRenderer.invoke('claude:getModels'),
   setClaudeModel: (modelId) => ipcRenderer.invoke('claude:setModel', { modelId }),
+  executeAgent: (params) => ipcRenderer.invoke('claude:executeAgent', params),
+  getAvailableAgents: () => ipcRenderer.invoke('claude:getAgents'),
 
   // Event listeners
   onNewChat: (callback) => ipcRenderer.on('new-chat', callback),

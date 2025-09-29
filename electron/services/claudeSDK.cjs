@@ -176,10 +176,12 @@ Be helpful, concise, and proactive in suggesting solutions.`;
       }
     });
 
-    // Web search
-    ipcMain.handle('claude:webSearch', async (event, { query }) => {
+    // Enhanced Web Search with Claude Code capabilities
+    ipcMain.handle('claude:webSearch', async (event, { query, options = {} }) => {
       try {
-        // Using DuckDuckGo HTML API for search
+        const { allowedDomains, blockedDomains, maxResults = 10 } = options;
+
+        // Using DuckDuckGo HTML API for initial search
         const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
         const response = await axios.get(searchUrl, {
           headers: {
@@ -187,12 +189,64 @@ Be helpful, concise, and proactive in suggesting solutions.`;
           }
         });
 
-        // Parse basic results from HTML (simplified)
-        const results = this.parseSearchResults(response.data);
+        // Enhanced parsing for better results
+        let results = this.parseSearchResults(response.data);
+
+        // Apply domain filters
+        if (allowedDomains && allowedDomains.length > 0) {
+          results = results.filter(r =>
+            allowedDomains.some(domain => r.url.includes(domain))
+          );
+        }
+
+        if (blockedDomains && blockedDomains.length > 0) {
+          results = results.filter(r =>
+            !blockedDomains.some(domain => r.url.includes(domain))
+          );
+        }
+
+        // If Claude client is available, enhance results with AI
+        if (this.client && results.length > 0) {
+          try {
+            const enhancePrompt = `Given these search results for "${query}", provide a brief summary of the most relevant information:\n${results.slice(0, 5).map(r => `- ${r.title}: ${r.snippet || r.url}`).join('\n')}`;
+
+            const inputTokens = this.estimateTokens(enhancePrompt);
+
+            const response = await this.client.messages.create({
+              model: this.currentModel,
+              max_tokens: 500,
+              messages: [{ role: 'user', content: enhancePrompt }],
+              system: 'Summarize the search results concisely.'
+            });
+
+            const summary = response.content[0].text;
+            const outputTokens = this.estimateTokens(summary);
+
+            // Track cost
+            if (event.sender && !event.sender.isDestroyed()) {
+              event.sender.send('cost-tracking', {
+                operation: 'search',
+                model: this.currentModel,
+                tokens: { input: inputTokens, output: outputTokens, cached: 0 },
+                success: true
+              });
+            }
+
+            return {
+              success: true,
+              results: results.slice(0, maxResults),
+              summary,
+              totalResults: results.length
+            };
+          } catch (err) {
+            console.log('Could not enhance with AI, returning raw results');
+          }
+        }
 
         return {
           success: true,
-          results: results.slice(0, 5)
+          results: results.slice(0, maxResults),
+          totalResults: results.length
         };
       } catch (error) {
         return {
@@ -401,6 +455,116 @@ Be helpful, concise, and proactive in suggesting solutions.`;
       };
     });
 
+    // Execute Agent - Claude Code sub-agent functionality
+    ipcMain.handle('claude:executeAgent', async (event, { agentType, task, context }) => {
+      try {
+        if (!this.client) {
+          throw new Error('Claude SDK not initialized');
+        }
+
+        // Define available agent types and their specialized prompts
+        const agents = {
+          'general-purpose': {
+            name: 'General Purpose Agent',
+            systemPrompt: 'You are a general-purpose AI agent capable of handling complex, multi-step tasks. Break down the task, execute it systematically, and provide clear results.',
+            model: this.currentModel
+          },
+          'code-reviewer': {
+            name: 'Code Review Agent',
+            systemPrompt: 'You are an expert code reviewer. Analyze code for bugs, performance issues, security vulnerabilities, and suggest improvements. Be thorough but constructive.',
+            model: this.currentModel
+          },
+          'debugger': {
+            name: 'Debugging Agent',
+            systemPrompt: 'You are a debugging specialist. Identify the root cause of issues, suggest fixes, and explain the problem clearly. Focus on practical solutions.',
+            model: this.currentModel
+          },
+          'data-analyst': {
+            name: 'Data Analysis Agent',
+            systemPrompt: 'You are a data analysis expert. Extract insights from data, identify patterns, and provide clear visualizations or summaries. Be precise and data-driven.',
+            model: this.currentModel
+          },
+          'content-writer': {
+            name: 'Content Writing Agent',
+            systemPrompt: 'You are a professional content writer. Create engaging, clear, and well-structured content. Adapt your tone and style to the target audience.',
+            model: this.currentModel
+          },
+          'research': {
+            name: 'Research Agent',
+            systemPrompt: 'You are a research specialist. Gather comprehensive information, verify sources, and provide well-organized findings with proper citations.',
+            model: this.currentModel
+          }
+        };
+
+        const agent = agents[agentType] || agents['general-purpose'];
+
+        // Build the full prompt with context
+        const fullPrompt = `Task: ${task}\n\nContext: ${JSON.stringify(context || {})}\n\nProvide a detailed execution plan and results.`;
+
+        const inputTokens = this.estimateTokens(agent.systemPrompt + fullPrompt);
+
+        // Execute the agent task
+        const response = await this.client.messages.create({
+          model: agent.model,
+          max_tokens: 4000,
+          system: agent.systemPrompt,
+          messages: [{
+            role: 'user',
+            content: fullPrompt
+          }]
+        });
+
+        const result = response.content[0].text;
+        const outputTokens = this.estimateTokens(result);
+
+        // Track cost
+        if (event.sender && !event.sender.isDestroyed()) {
+          event.sender.send('cost-tracking', {
+            operation: 'task-automation',
+            model: agent.model,
+            tokens: { input: inputTokens, output: outputTokens, cached: 0 },
+            success: true
+          });
+        }
+
+        // Parse the result for structured output
+        const structuredResult = this.parseAgentResult(result);
+
+        return {
+          success: true,
+          agent: agent.name,
+          result: result,
+          structured: structuredResult,
+          usage: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens
+          }
+        };
+      } catch (error) {
+        console.error('Agent execution error:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    });
+
+    // Get available agents
+    ipcMain.handle('claude:getAgents', async () => {
+      return {
+        success: true,
+        agents: [
+          { id: 'general-purpose', name: 'General Purpose', description: 'Handles complex multi-step tasks' },
+          { id: 'code-reviewer', name: 'Code Reviewer', description: 'Reviews code for quality and improvements' },
+          { id: 'debugger', name: 'Debugger', description: 'Identifies and fixes bugs' },
+          { id: 'data-analyst', name: 'Data Analyst', description: 'Analyzes data and extracts insights' },
+          { id: 'content-writer', name: 'Content Writer', description: 'Creates engaging content' },
+          { id: 'research', name: 'Research', description: 'Conducts thorough research' }
+        ]
+      };
+    });
+
     // Get available models
     ipcMain.handle('claude:getModels', async () => {
       try {
@@ -510,21 +674,90 @@ Be helpful, concise, and proactive in suggesting solutions.`;
   }
 
   parseSearchResults(html) {
-    // Simple regex-based parsing for DuckDuckGo results
     const results = [];
-    const linkRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>([^<]*)</g;
-    const snippetRegex = /<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*)</g;
+    const resultBlocks = html.match(/<div[^>]*class="[^"]*result[^"]*"[^>]*>[\s\S]*?<\/div>/g) || [];
 
-    let match;
-    while ((match = linkRegex.exec(html)) !== null) {
-      results.push({
-        title: match[2],
-        url: match[1],
-        snippet: '' // Would need more complex parsing for snippets
-      });
+    for (const block of resultBlocks.slice(0, 20)) {
+      const titleMatch = block.match(/<a[^>]*class="[^"]*result__a[^"]*"[^>]*>([^<]*)</i);
+      const urlMatch = block.match(/href="([^"]*)"/i);
+      const snippetMatch = block.match(/<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*)</i) ||
+                          block.match(/<span[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([^<]*)</i);
+
+      if (titleMatch && urlMatch) {
+        results.push({
+          title: this.decodeHtml(titleMatch[1]),
+          url: urlMatch[1],
+          snippet: snippetMatch ? this.decodeHtml(snippetMatch[1]) : ''
+        });
+      }
     }
 
     return results;
+  }
+
+  decodeHtml(html) {
+    return html
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/<[^>]*>/g, '')
+      .trim();
+  }
+
+  parseAgentResult(text) {
+    // Parse agent results into structured format
+    const structured = {
+      steps: [],
+      findings: [],
+      recommendations: [],
+      code: [],
+      summary: ''
+    };
+
+    const lines = text.split('\n');
+    let currentSection = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // Detect sections
+      if (trimmed.match(/^(steps|plan|execution):/i)) {
+        currentSection = 'steps';
+      } else if (trimmed.match(/^(findings|results|analysis):/i)) {
+        currentSection = 'findings';
+      } else if (trimmed.match(/^(recommendations|suggestions|improvements):/i)) {
+        currentSection = 'recommendations';
+      } else if (trimmed.match(/^```/)) {
+        currentSection = currentSection === 'code' ? null : 'code';
+      } else if (trimmed.match(/^(summary|conclusion):/i)) {
+        currentSection = 'summary';
+      }
+
+      // Add content to sections
+      if (currentSection && trimmed && !trimmed.match(/^(steps|findings|recommendations|summary|code):/i)) {
+        if (currentSection === 'code') {
+          structured.code.push(line);
+        } else if (currentSection === 'summary') {
+          structured.summary += trimmed + ' ';
+        } else if (trimmed.match(/^[\d\-\*]/)) {
+          structured[currentSection].push(trimmed.replace(/^[\d\-\*\.\s]+/, ''));
+        }
+      }
+    }
+
+    // Clean up summary
+    structured.summary = structured.summary.trim() || text.substring(0, 200) + '...';
+
+    // Join code blocks
+    if (structured.code.length > 0) {
+      structured.code = structured.code.join('\n');
+    } else {
+      structured.code = null;
+    }
+
+    return structured;
   }
 
   parseAutomationSteps(text) {

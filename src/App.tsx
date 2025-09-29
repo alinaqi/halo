@@ -17,7 +17,8 @@ import { memoryService } from './services/memoryService';
 import { CostDashboard } from './components/CostTracking/CostDashboard';
 import { costTracker } from './services/costTracker';
 import { userDataService } from './services/userDataService';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Bot } from 'lucide-react';
+import { AgentBuilder } from './components/Agents/AgentBuilder';
 
 type AppState = 'welcome' | 'role-selection' | 'api-setup' | 'dashboard' | 'main';
 
@@ -31,7 +32,7 @@ function AppContent() {
     (userProfile.role as UserRole) || 'other'
   );
   const [userName, setUserName] = useState(userProfile.name || 'User');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'files' | 'tasks' | 'research' | 'templates' | 'costs'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'files' | 'tasks' | 'research' | 'templates' | 'agents' | 'costs'>('dashboard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
@@ -317,6 +318,18 @@ function AppContent() {
           </button>
 
           <button
+            onClick={() => setCurrentView('agents')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentView === 'agents'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <Bot className="w-5 h-5" />
+            <span className="font-medium">AI Agents</span>
+          </button>
+
+          <button
             onClick={() => setCurrentView('costs')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               currentView === 'costs'
@@ -375,6 +388,9 @@ function AppContent() {
         )}
         {currentView === 'templates' && (
           <Templates userRole={userRole} />
+        )}
+        {currentView === 'agents' && (
+          <AgentBuilder userRole={userRole} />
         )}
         {currentView === 'costs' && (
           <CostDashboard />

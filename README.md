@@ -4,19 +4,25 @@
 
 Halo is a user-friendly desktop application that brings the power of AI to your fingertips. Built with Electron and React, it provides a seamless interface for AI-powered productivity without requiring technical expertise.
 
-### 📥 [Download Latest Release (v1.1.0)](https://github.com/alinaqi/halo/releases/latest)
+### 📥 [Download Latest Release (v1.2.0)](https://github.com/alinaqi/halo/releases/latest)
 
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
-![Status](https://img.shields.io/badge/status-v1.1.0%20Released-success)
+![Status](https://img.shields.io/badge/status-v1.2.0%20Released-success)
 ![GitHub Release](https://img.shields.io/github/v/release/alinaqi/halo)
 
 ![Halo Desktop Screenshot](halo.png)
 
-## ✨ Features - Version 1.1.0
+## ✨ Features - Version 1.2.0
 
-### 🆕 What's New in v1.1.0
+### 🆕 What's New in v1.2.0
+- **🤖 AI Agents**: Specialized AI assistants for complex tasks (Code Review, Debugging, Data Analysis, etc.)
+- **🔍 Enhanced Web Search**: Advanced search with domain filtering, AI summarization, and relevance scoring
+- **🚀 Agent Execution History**: Track and review all agent tasks with structured results
+- **📊 Improved Research Tools**: File analysis and web research with context-aware insights
+
+### Previous v1.1.0 Features
 - **💰 Cost Tracking & Analytics**: Monitor AI usage and costs in real-time
 - **🤖 Model Selection**: Choose from latest models (Haiku 3.5, Sonnet 3.7/4, Opus 4/4.1)
 - **👤 Persistent User Profiles**: Settings and data persist across sessions
@@ -36,6 +42,8 @@ Halo is a user-friendly desktop application that brings the power of AI to your 
 - **🌓 Theme Support**: Light, Dark, and Auto theme modes
 
 ### 🚀 Key Capabilities
+- **AI Agents**: Specialized assistants for code review, debugging, data analysis, content writing, and research
+- **Advanced Web Search**: Enhanced search with AI-powered summaries and domain filtering
 - **AI Model Selection**: Choose between multiple models based on your needs
 - **Cost Tracking**: Real-time monitoring of AI usage and spending
 - **Budget Management**: Set daily/monthly limits with alerts

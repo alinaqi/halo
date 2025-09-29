@@ -5,6 +5,13 @@ interface SearchResult {
   title: string;
   url: string;
   snippet: string;
+  relevance?: number;
+}
+
+interface SearchOptions {
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  maxResults?: number;
 }
 
 interface ResearchProps {
@@ -14,39 +21,50 @@ interface ResearchProps {
 export const Research: React.FC<ResearchProps> = ({ userRole }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchSummary, setSearchSummary] = useState<string>('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileAnalysis, setFileAnalysis] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [searchOptions, setSearchOptions] = useState<SearchOptions>({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     setSearchResults([]);
+    setSearchSummary('');
 
     try {
       if (window.electronAPI && window.electronAPI.webSearch) {
-        const response = await window.electronAPI.webSearch({ query: searchQuery });
-        if (response.success && response.results) {
-          setSearchResults(response.results);
+        const response = await window.electronAPI.webSearch({
+          query: searchQuery,
+          options: searchOptions
+        });
+        if (response.success) {
+          setSearchResults(response.results || []);
+          setSearchSummary(response.summary || '');
         } else {
           console.error('Search failed:', response.error);
         }
       } else {
-        // Demo data
+        // Enhanced demo data with relevance scores
         setSearchResults([
           {
             title: 'Example Result 1',
             url: 'https://example.com/1',
-            snippet: 'This is a demo search result for ' + searchQuery
+            snippet: 'This is a demo search result for ' + searchQuery,
+            relevance: 0.95
           },
           {
             title: 'Example Result 2',
             url: 'https://example.com/2',
-            snippet: 'Another demo result related to ' + searchQuery
+            snippet: 'Another demo result related to ' + searchQuery,
+            relevance: 0.8
           }
         ]);
+        setSearchSummary(`Found 2 demo results for "${searchQuery}". In production, this would use Claude's advanced search capabilities.`);
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -145,6 +163,57 @@ export const Research: React.FC<ResearchProps> = ({ userRole }) => {
               )}
             </button>
           </form>
+
+          {/* Advanced Options */}
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+          </button>
+
+          {showAdvanced && (
+            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+              <div>
+                <label className="text-xs text-gray-600 dark:text-gray-400">Allowed Domains (comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., github.com, stackoverflow.com"
+                  onChange={(e) => setSearchOptions(prev => ({
+                    ...prev,
+                    allowedDomains: e.target.value ? e.target.value.split(',').map(d => d.trim()) : undefined
+                  }))}
+                  className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 dark:text-gray-400">Blocked Domains (comma-separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., pinterest.com"
+                  onChange={(e) => setSearchOptions(prev => ({
+                    ...prev,
+                    blockedDomains: e.target.value ? e.target.value.split(',').map(d => d.trim()) : undefined
+                  }))}
+                  className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 dark:text-gray-400">Max Results</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  defaultValue="10"
+                  onChange={(e) => setSearchOptions(prev => ({
+                    ...prev,
+                    maxResults: parseInt(e.target.value)
+                  }))}
+                  className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Searches */}
@@ -166,13 +235,27 @@ export const Research: React.FC<ResearchProps> = ({ userRole }) => {
           </div>
         </div>
 
+        {/* Search Summary */}
+        {searchSummary && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-sm text-blue-700 dark:text-blue-300">{searchSummary}</p>
+          </div>
+        )}
+
         {/* Search Results */}
         <div className="space-y-4">
           {searchResults.map((result, index) => (
-            <div key={index} className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div key={index} className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-1">{result.title}</h4>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-medium text-gray-900 dark:text-white">{result.title}</h4>
+                    {result.relevance && (
+                      <span className="text-xs px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full">
+                        {Math.round(result.relevance * 100)}% relevant
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{result.snippet}</p>
                   <a
                     href={result.url}
