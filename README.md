@@ -4,17 +4,25 @@
 
 Halo is a user-friendly desktop application that brings the power of AI to your fingertips. Built with Electron and React, it provides a seamless interface for AI-powered productivity without requiring technical expertise.
 
-### 📥 [Download Latest Release (v1.0.0)](https://github.com/alinaqi/halo/releases/latest)
+### 📥 [Download Latest Release (v1.1.0)](https://github.com/alinaqi/halo/releases/latest)
 
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-green)
-![Status](https://img.shields.io/badge/status-v1.0.0%20Released-success)
+![Status](https://img.shields.io/badge/status-v1.1.0%20Released-success)
 ![GitHub Release](https://img.shields.io/github/v/release/alinaqi/halo)
 
 ![Halo Desktop Screenshot](halo.png)
 
-## ✨ Features - Phase 1 MVP Complete!
+## ✨ Features - Version 1.1.0
+
+### 🆕 What's New in v1.1.0
+- **💰 Cost Tracking & Analytics**: Monitor AI usage and costs in real-time
+- **🤖 Model Selection**: Choose from latest models (Haiku 3.5, Sonnet 3.7/4, Opus 4/4.1)
+- **👤 Persistent User Profiles**: Settings and data persist across sessions
+- **📊 Real Data Management**: No more dummy data - all dashboards use real, persistent data
+- **🔄 Smart Onboarding**: Skip onboarding on return visits
+- **📈 Usage Analytics**: Track trends, get optimization suggestions
 
 ### 🎯 Core Features
 - **👤 Personalized Onboarding**: Role selection for customized experience (PM, Designer, Marketing, Developer, etc.)
@@ -28,6 +36,9 @@ Halo is a user-friendly desktop application that brings the power of AI to your 
 - **🌓 Theme Support**: Light, Dark, and Auto theme modes
 
 ### 🚀 Key Capabilities
+- **AI Model Selection**: Choose between multiple models based on your needs
+- **Cost Tracking**: Real-time monitoring of AI usage and spending
+- **Budget Management**: Set daily/monthly limits with alerts
 - **Smart Suggestions**: Time and context-aware recommendations
 - **Role-Specific Dashboards**: Tailored interfaces for different professions
 - **Project Tracking**: Monitor progress, deadlines, and blockers
@@ -35,6 +46,7 @@ Halo is a user-friendly desktop application that brings the power of AI to your 
 - **File Operations**: Browse, edit, search, and organize files
 - **Task Workflows**: Create, prioritize, and track tasks with statuses
 - **Settings Management**: Comprehensive preferences and customization
+- **Data Persistence**: All your data is saved locally and persists across sessions
 
 ## 🚀 Quick Start (For Users)
 
@@ -106,17 +118,17 @@ npm run dist:win
 npm run dist:linux
 ```
 
-## 🆕 What's New in Phase 1 MVP
+## 💡 Available AI Models
 
-### Latest Features
-- ✅ Complete Task Management System with priorities and filtering
-- 🧠 Smart Memory Service for context retention
-- ⚡ YOLO/Careful operation modes
-- 🎨 Comprehensive Settings Panel
-- 👤 Role-based UI adaptation
-- 🌓 Dark/Light/Auto theme support
-- 💾 Local data persistence
-- 🔍 Advanced file search capabilities
+Halo now supports the latest models with easy switching:
+
+- **Haiku 3.5** - Fast and cost-effective for quick tasks
+- **Sonnet 3.7** - Balanced performance for most use cases
+- **Sonnet 4** - High performance with advanced capabilities
+- **Opus 4** - Very high intelligence for complex tasks
+- **Opus 4.1** - Most capable model for demanding applications
+
+Switch models anytime in Settings → API → Model Selection
 
 ## 🏗️ Architecture
 

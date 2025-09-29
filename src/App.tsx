@@ -14,15 +14,24 @@ import { Terminal } from './components/Terminal/Terminal';
 import { Research } from './components/Research/Research';
 import { Templates } from './components/Templates/Templates';
 import { memoryService } from './services/memoryService';
+import { CostDashboard } from './components/CostTracking/CostDashboard';
+import { costTracker } from './services/costTracker';
+import { userDataService } from './services/userDataService';
+import { DollarSign } from 'lucide-react';
 
 type AppState = 'welcome' | 'role-selection' | 'api-setup' | 'dashboard' | 'main';
 
 function AppContent() {
   const { authState } = useAI();
-  const [appState, setAppState] = useState<AppState>('welcome');
-  const [userRole, setUserRole] = useState<UserRole>('other');
-  const [userName, setUserName] = useState('User');
-  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'files' | 'tasks' | 'research' | 'templates'>('dashboard');
+  const userProfile = userDataService.getProfile();
+  const [appState, setAppState] = useState<AppState>(
+    userProfile.onboardingCompleted ? 'main' : 'welcome'
+  );
+  const [userRole, setUserRole] = useState<UserRole>(
+    (userProfile.role as UserRole) || 'other'
+  );
+  const [userName, setUserName] = useState(userProfile.name || 'User');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'chat' | 'files' | 'tasks' | 'research' | 'templates' | 'costs'>('dashboard');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
@@ -30,20 +39,47 @@ function AppContent() {
   useEffect(() => {
     // Load saved preferences
     loadUserPreferences();
+
+    // Set up cost tracking listener
+    if (window.electronAPI && window.electronAPI.on) {
+      window.electronAPI.on('cost:track', (event, data) => {
+        costTracker.trackOperation(
+          data.operation,
+          data.model,
+          data.tokens,
+          data.success
+        );
+      });
+    }
   }, []);
 
   const loadUserPreferences = async () => {
+    // Load from userDataService first
+    const profile = userDataService.getProfile();
+    if (profile.onboardingCompleted) {
+      setUserRole(profile.role as UserRole);
+      setUserName(profile.name);
+
+      // If authenticated or in demo mode, go straight to main
+      if (authState.isAuthenticated || profile.role) {
+        setAppState('main');
+      }
+    }
+
+    // Also check Electron preferences for backward compatibility
     if (window.electronAPI) {
       const prefs = await window.electronAPI.getPreferences();
-      if (prefs?.role) {
+      if (prefs?.role && !profile.onboardingCompleted) {
+        // Migrate old preferences to userDataService
+        userDataService.completeOnboarding(prefs.name || 'User', prefs.role);
         setUserRole(prefs.role);
         setUserName(prefs.name || 'User');
-        // Skip onboarding if already set up
         if (authState.isAuthenticated) {
           setAppState('main');
         }
       }
     }
+
     // Load memory context
     const userContext = memoryService.getUserContext();
     if (userContext) {
@@ -54,14 +90,19 @@ function AppContent() {
     }
   };
 
-  const handleWelcomeContinue = () => {
+  const handleWelcomeContinue = (name: string) => {
+    setUserName(name);
+    userDataService.updateProfile({ name });
     setAppState('role-selection');
   };
 
   const handleRoleSelect = async (role: UserRole) => {
     setUserRole(role);
 
-    // Save preference
+    // Save to userDataService
+    userDataService.completeOnboarding(userName, role);
+
+    // Also save to Electron for backward compatibility
     if (window.electronAPI) {
       await window.electronAPI.savePreferences({ role, name: userName });
     }
@@ -75,6 +116,8 @@ function AppContent() {
   };
 
   const handleAPISetupComplete = () => {
+    // Mark onboarding as complete
+    userDataService.completeOnboarding(userName, userRole);
     setAppState('main');
   };
 
@@ -272,6 +315,18 @@ function AppContent() {
             <FileText className="w-5 h-5" />
             <span className="font-medium">Templates</span>
           </button>
+
+          <button
+            onClick={() => setCurrentView('costs')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentView === 'costs'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            <DollarSign className="w-5 h-5" />
+            <span className="font-medium">Cost Tracking</span>
+          </button>
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
@@ -320,6 +375,9 @@ function AppContent() {
         )}
         {currentView === 'templates' && (
           <Templates userRole={userRole} />
+        )}
+        {currentView === 'costs' && (
+          <CostDashboard />
         )}
       </div>
 

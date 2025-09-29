@@ -14,10 +14,18 @@ class ClaudeSDKService {
     this.systemPrompt = `You are Halo, an AI assistant helping users with their tasks.
 You have access to file operations, can execute commands, search the web, and help with various productivity tasks.
 Be helpful, concise, and proactive in suggesting solutions.`;
+    this.currentModel = 'claude-3-5-haiku-20241022'; // Default to Haiku 3.5 for speed and cost
+    this.availableModels = [
+      { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Fast and cost-effective' },
+      { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', description: 'Balanced performance' },
+      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'High performance' },
+      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', description: 'Very high intelligence' },
+      { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1', description: 'Most capable model' }
+    ];
     this.setupHandlers();
   }
 
-  initialize(apiKey) {
+  initialize(apiKey, savedModel) {
     if (!apiKey) {
       console.warn('No API key provided for Claude SDK');
       this.client = null;
@@ -32,13 +40,26 @@ Be helpful, concise, and proactive in suggesting solutions.`;
         apiKey: cleanApiKey
       });
 
-      console.log('Claude SDK initialized successfully');
+      // Load saved model preference if available
+      if (savedModel && this.availableModels.find(m => m.id === savedModel)) {
+        this.currentModel = savedModel;
+        console.log(`Claude SDK initialized with model: ${savedModel}`);
+      } else {
+        console.log(`Claude SDK initialized with default model: ${this.currentModel}`);
+      }
+
       return true;
     } catch (error) {
       console.error('Failed to initialize Claude SDK:', error);
       this.client = null;
       return false;
     }
+  }
+
+  // Helper function to estimate tokens (rough approximation)
+  estimateTokens(text) {
+    // Rough estimation: 1 token ≈ 4 characters
+    return Math.ceil(text.length / 4);
   }
 
   setupHandlers() {
@@ -67,20 +88,47 @@ Be helpful, concise, and proactive in suggesting solutions.`;
           ...this.conversationHistory.slice(-10) // Keep last 10 messages for context
         ];
 
+        const model = this.currentModel || 'claude-3-5-haiku-20241022';
+        const systemPrompt = this.systemPrompt + (context ? `\n\nCurrent context: ${JSON.stringify(context)}` : '');
+
+        // Estimate input tokens
+        const inputTokens = this.estimateTokens(
+          systemPrompt + messages.map(m => m.content).join(' ')
+        );
+
         const response = await this.client.messages.create({
-          model: 'claude-3-sonnet-20240229',
+          model: model,
           max_tokens: 4000,
-          system: this.systemPrompt + (context ? `\n\nCurrent context: ${JSON.stringify(context)}` : ''),
+          system: systemPrompt,
           messages: messages
         });
 
         const assistantMessage = response.content[0].text;
         this.conversationHistory.push({ role: 'assistant', content: assistantMessage });
 
+        // Estimate output tokens
+        const outputTokens = this.estimateTokens(assistantMessage);
+
+        // Track cost via IPC to renderer
+        event.sender.send('cost:track', {
+          operation: 'chat',
+          model: model,
+          tokens: {
+            input: inputTokens,
+            output: outputTokens
+          },
+          success: true
+        });
+
         return {
           success: true,
           message: assistantMessage,
-          suggestions: this.generateSuggestions(message, assistantMessage)
+          suggestions: this.generateSuggestions(message, assistantMessage),
+          usage: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens
+          }
         };
       } catch (error) {
         console.error('Chat error:', error);
@@ -163,24 +211,49 @@ Be helpful, concise, and proactive in suggesting solutions.`;
 
         const content = await fs.readFile(filePath, 'utf-8');
         const extension = path.extname(filePath);
+        const model = this.currentModel || 'claude-3-5-haiku-20241022';
+        const systemPrompt = 'You are a code analyst. Analyze this file and provide a brief summary of its purpose, key functions, and any potential improvements.';
+        const userContent = `Analyze this ${extension} file:\n\n${content.substring(0, 10000)}`;
+
+        // Estimate input tokens
+        const inputTokens = this.estimateTokens(systemPrompt + userContent);
 
         const response = await this.client.messages.create({
-          model: 'claude-3-sonnet-20240229',
+          model: model,
           max_tokens: 2000,
-          system: 'You are a code analyst. Analyze this file and provide a brief summary of its purpose, key functions, and any potential improvements.',
+          system: systemPrompt,
           messages: [{
             role: 'user',
-            content: `Analyze this ${extension} file:\n\n${content.substring(0, 10000)}` // Limit content size
+            content: userContent
           }]
+        });
+
+        const analysisText = response.content[0].text;
+        const outputTokens = this.estimateTokens(analysisText);
+
+        // Track cost
+        event.sender.send('cost:track', {
+          operation: 'file-analysis',
+          model: model,
+          tokens: {
+            input: inputTokens,
+            output: outputTokens
+          },
+          success: true
         });
 
         return {
           success: true,
-          analysis: response.content[0].text,
+          analysis: analysisText,
           fileInfo: {
             path: filePath,
             extension,
             size: content.length
+          },
+          usage: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens
           }
         };
       } catch (error) {
@@ -198,19 +271,44 @@ Be helpful, concise, and proactive in suggesting solutions.`;
           throw new Error('Claude SDK not initialized');
         }
 
+        const model = this.currentModel || 'claude-3-5-haiku-20241022';
+        const systemPrompt = `You are an expert programmer. Generate clean, well-commented ${language || 'code'} based on the user's requirements. Only return the code without explanations.`;
+
+        // Estimate input tokens
+        const inputTokens = this.estimateTokens(systemPrompt + prompt);
+
         const response = await this.client.messages.create({
-          model: 'claude-3-sonnet-20240229',
+          model: model,
           max_tokens: 4000,
-          system: `You are an expert programmer. Generate clean, well-commented ${language || 'code'} based on the user's requirements. Only return the code without explanations.`,
+          system: systemPrompt,
           messages: [{
             role: 'user',
             content: prompt
           }]
         });
 
+        const generatedCode = response.content[0].text;
+        const outputTokens = this.estimateTokens(generatedCode);
+
+        // Track cost
+        event.sender.send('cost:track', {
+          operation: 'code-generation',
+          model: model,
+          tokens: {
+            input: inputTokens,
+            output: outputTokens
+          },
+          success: true
+        });
+
         return {
           success: true,
-          code: response.content[0].text
+          code: generatedCode,
+          usage: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens
+          }
         };
       } catch (error) {
         return {
@@ -227,18 +325,39 @@ Be helpful, concise, and proactive in suggesting solutions.`;
           throw new Error('Claude SDK not initialized');
         }
 
+        const model = this.currentModel || 'claude-3-5-haiku-20241022';
+        const systemPrompt = 'You are a task automation expert. Break down the task into specific steps and provide executable commands or actions.';
+        const userContent = `Automate this task: ${task}\nParameters: ${JSON.stringify(parameters)}`;
+
+        // Estimate input tokens
+        const inputTokens = this.estimateTokens(systemPrompt + userContent);
+
         // Analyze task and generate automation steps
         const response = await this.client.messages.create({
-          model: 'claude-3-sonnet-20240229',
+          model: model,
           max_tokens: 2000,
-          system: 'You are a task automation expert. Break down the task into specific steps and provide executable commands or actions.',
+          system: systemPrompt,
           messages: [{
             role: 'user',
-            content: `Automate this task: ${task}\nParameters: ${JSON.stringify(parameters)}`
+            content: userContent
           }]
         });
 
-        const steps = this.parseAutomationSteps(response.content[0].text);
+        const explanation = response.content[0].text;
+        const outputTokens = this.estimateTokens(explanation);
+
+        // Track cost
+        event.sender.send('cost:track', {
+          operation: 'task-automation',
+          model: model,
+          tokens: {
+            input: inputTokens,
+            output: outputTokens
+          },
+          success: true
+        });
+
+        const steps = this.parseAutomationSteps(explanation);
 
         // Execute steps if they're commands
         const results = [];
@@ -253,7 +372,12 @@ Be helpful, concise, and proactive in suggesting solutions.`;
           success: true,
           steps,
           results,
-          explanation: response.content[0].text
+          explanation: explanation,
+          usage: {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens
+          }
         };
       } catch (error) {
         return {
@@ -276,6 +400,73 @@ Be helpful, concise, and proactive in suggesting solutions.`;
         history: this.conversationHistory
       };
     });
+
+    // Get available models
+    ipcMain.handle('claude:getModels', async () => {
+      try {
+        // If we have a client, try to fetch from API
+        if (this.client) {
+          try {
+            // Note: The Anthropic SDK doesn't have a direct models.list method yet,
+            // so we'll use our predefined list with attempt to validate
+            return {
+              success: true,
+              models: this.availableModels,
+              currentModel: this.currentModel
+            };
+          } catch (error) {
+            console.log('Using cached models list');
+          }
+        }
+
+        // Return cached list
+        return {
+          success: true,
+          models: this.availableModels,
+          currentModel: this.currentModel
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error.message,
+          models: this.availableModels,
+          currentModel: this.currentModel
+        };
+      }
+    });
+
+    // Set current model
+    ipcMain.handle('claude:setModel', async (event, { modelId }) => {
+      try {
+        const model = this.availableModels.find(m => m.id === modelId);
+        if (!model) {
+          throw new Error('Invalid model ID');
+        }
+
+        this.currentModel = modelId;
+        console.log(`Switched to model: ${model.name} (${modelId})`);
+
+        return {
+          success: true,
+          model: model
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    });
+  }
+
+  // Method to set model programmatically
+  setModel(modelId) {
+    const model = this.availableModels.find(m => m.id === modelId);
+    if (model) {
+      this.currentModel = modelId;
+      return true;
+    }
+    return false;
   }
 
   generateSuggestions(userMessage, assistantResponse) {

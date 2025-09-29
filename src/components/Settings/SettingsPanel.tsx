@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { APISettings } from './APISettings';
 import { memoryService } from '../../services/memoryService';
+import { userDataService } from '../../services/userDataService';
 import {
   Settings,
   Zap,
@@ -52,8 +53,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     recentFiles: 0
   });
 
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; description: string }>>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+
   useEffect(() => {
     loadSettings();
+    loadModels();
   }, []);
 
   const loadSettings = () => {
@@ -67,10 +72,48 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       recentProjects: userContext.recentProjects.length,
       recentFiles: userContext.recentFiles.length
     });
+
+    // Load selected model from user profile
+    const profile = userDataService.getProfile();
+    if (profile.selectedModel) {
+      setSelectedModel(profile.selectedModel);
+    }
+  };
+
+  const loadModels = async () => {
+    if (window.electronAPI && window.electronAPI.getAvailableModels) {
+      try {
+        const response = await window.electronAPI.getAvailableModels();
+        if (response.success) {
+          setAvailableModels(response.models);
+          if (!selectedModel && response.currentModel) {
+            setSelectedModel(response.currentModel);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load models:', error);
+      }
+    }
+  };
+
+  const handleModelChange = async (modelId: string) => {
+    setSelectedModel(modelId);
+
+    // Save to user profile
+    userDataService.updateProfile({ selectedModel: modelId });
+
+    // Update Claude SDK
+    if (window.electronAPI && window.electronAPI.setClaudeModel) {
+      const response = await window.electronAPI.setClaudeModel(modelId);
+      if (response.success) {
+        console.log(`Switched to model: ${response.model.name}`);
+      }
+    }
   };
 
   const saveSettings = () => {
     memoryService.updateUserContext({ preferences });
+    userDataService.updateProfile({ selectedModel });
     if (window.electronAPI) {
       window.electronAPI.savePreferences({ ...preferences, role: userRole, name: userName });
     }
@@ -314,11 +357,79 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           )}
 
           {activeTab === 'api' && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                API Configuration
-              </h3>
-              <APISettings />
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  API Configuration
+                </h3>
+                <APISettings />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                  Model Selection
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  Choose the Claude model that best fits your needs
+                </p>
+
+                <div className="space-y-3">
+                  {availableModels.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => handleModelChange(model.id)}
+                      className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                        selectedModel === model.id
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                            {model.name}
+                            {selectedModel === model.id && (
+                              <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded">
+                                Active
+                              </span>
+                            )}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {model.description}
+                          </p>
+                        </div>
+                        {model.id.includes('haiku') && (
+                          <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded">
+                            Fast & Cheap
+                          </span>
+                        )}
+                        {model.id.includes('sonnet') && !model.id.includes('3-7') && (
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded">
+                            Balanced
+                          </span>
+                        )}
+                        {model.id.includes('opus') && (
+                          <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-1 rounded">
+                            Most Capable
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    Model Recommendations
+                  </h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <li>• <strong>Haiku 3.5:</strong> Best for quick responses and high-volume tasks</li>
+                    <li>• <strong>Sonnet 3.7/4:</strong> Great balance of capability and speed</li>
+                    <li>• <strong>Opus 4/4.1:</strong> Most powerful for complex reasoning and coding</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
 

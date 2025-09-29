@@ -37,8 +37,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   automateTask: (params) => ipcRenderer.invoke('claude:automateTask', params),
   clearConversation: () => ipcRenderer.invoke('claude:clearConversation'),
   getConversationHistory: () => ipcRenderer.invoke('claude:getHistory'),
+  getAvailableModels: () => ipcRenderer.invoke('claude:getModels'),
+  setClaudeModel: (modelId) => ipcRenderer.invoke('claude:setModel', { modelId }),
 
   // Event listeners
   onNewChat: (callback) => ipcRenderer.on('new-chat', callback),
   onOpenProject: (callback) => ipcRenderer.on('open-project', callback),
+
+  // Generic event listener for cost tracking and other events
+  on: (channel, callback) => {
+    const validChannels = ['cost:track', 'new-chat', 'open-project'];
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, callback);
+    }
+  },
+  removeListener: (channel, callback) => {
+    ipcRenderer.removeListener(channel, callback);
+  }
 });
